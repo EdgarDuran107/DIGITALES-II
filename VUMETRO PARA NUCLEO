@@ -1,0 +1,82 @@
+//VUMETRO PARA NUCLEO L476RG Y TM16338
+
+//LLAMADO DE LIBRERIAS
+#include "mbed.h"
+#include "TM1638.h"
+#include <cstdint>
+
+TM1638 tm(D10, D13, D11); // STB, CLK, DIO
+
+//INICIALIZACION DE VARIABLES
+const int stableCycles = 8; // Número de ciclos para considerar botón estable
+int counterBtn1 = 0;
+int counterBtn2 = 0;
+
+//FUNCION PRINCIPAL
+int main() {
+    //INICIO DE DISPLAY
+    tm.init();
+    tm.clearDisplay();
+    tm.clearLeds();
+
+    uint8_t nivel = 0;         //NIVEL ACTUAL 0-8
+    float pico = 0.0f;         //PICO RESIDUAL FLOTANTE
+    const float decayRate = 0.2f; //DECAIMIENTO POR CICLO
+    bool parpadeo = false;      //PARA EL EFECTO ONDA DEL NIVEL
+
+    while (true) {
+        uint8_t keys = tm.readKeys();
+
+        //BOTON 1 PARA SUBIR EL NIVEL
+        if (keys & 0x01) {
+            counterBtn1++;
+            if (counterBtn1 >= stableCycles) {
+                counterBtn1 = 0;
+                if (nivel < 8) {
+                    nivel++;
+                } else {
+                    nivel = 0; //REINICIO AL MAXIMO
+                }
+                if (nivel > pico) pico = (float)nivel; //ACTUALIZAR EL PICO Actualizar pico
+            }
+        } else {
+            counterBtn1 = 0;
+        }
+
+        //BOTON 2 PARA BAJAR EL NIVEL
+        if (keys & 0x02) {
+            counterBtn2++;
+            if (counterBtn2 >= stableCycles) {
+                counterBtn2 = 0;
+                if (nivel > 0) nivel--;
+            }
+        } else {
+            counterBtn2 = 0;
+        }
+
+        //ALTERNADO DE PARPADEO PARA EL EFECTO DE ONDA
+        parpadeo = !parpadeo;
+
+        //ENCENDER LOS LED´S CON EL NIVEL Y PICO RESIDUAL
+        for (int i = 0; i < 8; i++) {
+            if (i < nivel) {
+                tm.displayLed(i, parpadeo);       //NIVEL ACTUAL CON EL PARPADEO
+            } else if (i < (int)(pico + 0.5f)) {
+                tm.displayLed(i, true);           //PICO RESIDUAL
+            } else {
+                tm.displayLed(i, false);
+            }
+        }
+
+        //MOSTRAR NIVEL EN EL DISPLAY
+        tm.displayNumber(nivel);
+
+        //DECAIMIENTO SUAVE DEL PICO
+        if (pico > nivel) {
+            pico -= decayRate;
+            if (pico < nivel) pico = (float)nivel;
+        }
+
+        thread_sleep_for(50); //CICLO RAPIDO PARA ANIMACION FLUIDA
+    }
+}
