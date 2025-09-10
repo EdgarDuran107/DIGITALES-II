@@ -1,0 +1,51 @@
+#VUMETRO PARA ESP32 WROOM CON EL MODULO TM1638
+
+#LLAMDO DE LIBRERIAS
+import machine
+import time
+from TM1638 import TM1638
+
+#ASIGNACION DE PINES
+STB = machine.Pin(15)
+CLK = machine.Pin(2)
+DIO = machine.Pin(4)
+
+tm = TM1638(stb=STB, clk=CLK, dio=DIO)
+
+#INICIACION DE LAS VARIABLES
+nivel = 0
+MAX_NIVEL = 9
+
+#HILO PRINCIPAL
+while True:
+    keys = tm.keys()
+    if keys & 0x01:  #BOTON 1 PARA SUBIR EL NIVEL
+        nivel += 1
+        if nivel > MAX_NIVEL:
+            nivel = 0
+        while tm.keys() & 0x01:
+            time.sleep(0.05)
+    if keys & 0x02:  #BOTON 2 PARA BAJAR EL NIVEL
+        nivel -= 1
+        if nivel < 0:
+            nivel = MAX_NIVEL
+        while tm.keys() & 0x02:
+            time.sleep(0.05)
+
+    if nivel == MAX_NIVEL:
+        #PARPADEO DE LOS LED´S Y REINICIO
+        for _ in range(5):
+            tm.leds(0xFF)
+            tm.show(f"Nivel {nivel}")
+            time.sleep(0.2)
+            tm.leds(0x00)
+            tm.show(f"Nivel {nivel}")
+            time.sleep(0.2)
+        nivel = 0  #REINICIO DEL VUMETRO
+        tm.leds(0)
+        tm.show(f"Nivel {nivel}")
+    else:
+        tm.leds((1 << nivel) - 1)
+        tm.show(f"Nivel {nivel}")
+
+    time.sleep(0.05)
