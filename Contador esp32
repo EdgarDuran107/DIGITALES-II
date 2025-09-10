@@ -1,0 +1,57 @@
+#CONTADOR EN MICROPYTHON USANDO UNA ESP32 WROOM CON UN MODULO TM1638
+
+#IMPORTAR LIBRERIAS
+from TM1638 import TM1638
+import machine
+import time
+
+#ASIGNACION DE PINES
+STB = machine.Pin(15)
+CLK = machine.Pin(2)
+DIO = machine.Pin(4)
+
+tm = TM1638(stb=STB, clk=CLK, dio=DIO)
+
+#INICIACION DE VARIABLES
+contador = 0
+direccion = 1
+MAX_NUM = 99999999
+
+# CONFIGURACION DE ANTIREBOTE
+DEBOUNCE_MS = 200
+last_state = 0
+last_time = [0] * 8   #UN TIEMPO PARA CADA BOTON
+
+#FUNCION PRINCIPAL
+while True:
+    tm.number(contador)
+    time.sleep(0.05)  #TIEMPO DE REFRESCO
+
+    keys = tm.keys()
+    now = time.ticks_ms()
+
+    for i in range(8):  #RECORRIDO POR CADA BOTON
+        mask = 1 << i
+        pressed_now = keys & mask
+        pressed_before = last_state & mask
+
+        #FLANCO DE SUBIDA CON ANTIREBOTE
+        if pressed_now and not pressed_before:
+            if time.ticks_diff(now, last_time[i]) > DEBOUNCE_MS:
+
+                #ACCION SEGUN EL BOTON
+                if i == 0:
+                    contador = 0           #BOTON 0 REINICIAR
+                else:
+                    direccion *= -1        #OTRO BOTON CAMBIA LA DIRECCION
+                
+                last_time[i] = now
+
+    last_state = keys
+
+    #ACTUALIZAR CONTADOR
+    contador += direccion
+    if contador < 0:
+        contador = MAX_NUM
+    elif contador > MAX_NUM:
+        contador = 0
