@@ -1,0 +1,52 @@
+//CODIGO PARA UN CONTADOR PARA NUCLEO L476RG Y TM1638
+
+//LLAMADO DE LIBRERIAS
+#include "mbed.h"
+#include "TM1638.h"
+
+
+//DEFINICION DE VARIABLES
+#define MAX_NUM 99999999
+#define DEBOUNCE_MS 150
+
+//ASIGNACION DE PINES  
+TM1638 tm1638(D10, D13, D11); // STB, CLK, DIO 
+
+//FUNCION PRINCIPAL
+int main() {
+
+    //INICIACION DE VARIABLES
+    uint32_t contador = 0;
+    int direccion = 1;
+    uint8_t prev_keys = 0;
+    Timer debounce;
+    debounce.start();
+
+    tm1638.init();
+    tm1638.clearDisplay();
+
+    while (true) {
+        tm1638.displayNumber(contador); //MUESTRA EN EL DISPLAY EL CONTADOR
+        thread_sleep_for(200);
+
+        //FUNCION DE LOS BOTONES
+        uint8_t keys = tm1638.readKeys();
+        if (keys != prev_keys && debounce.read_ms() > DEBOUNCE_MS) {
+            if (keys & 0x01) {
+                contador = 0;
+            } else if (keys) {
+                direccion *= -1;
+            }
+            debounce.reset();
+        }
+        prev_keys = keys;
+
+        //FUNCION PARA LA DIRECCION DEL CONTADOR
+        contador += direccion;
+        if (contador > MAX_NUM) {
+            contador = 0;
+        } else if ((int)contador < 0) {
+            contador = MAX_NUM;
+        }
+    }
+}
